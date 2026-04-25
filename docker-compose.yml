@@ -1,0 +1,23 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: ijeaf-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ijeaf_dev
+      POSTGRES_USER: ijeaf
+      POSTGRES_PASSWORD: ijeaf_dev_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ijeaf -d ijeaf_dev"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+    name: ijeaf_postgres_data
