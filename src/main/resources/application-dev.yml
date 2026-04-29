@@ -1,0 +1,13 @@
+# Profil DEV — surcharge de application.yml
+spring:
+  jpa:
+    show-sql: true
+  flyway:
+    enabled: true
+
+logging:
+  level:
+    com.ijeaf: DEBUG
+    org.springframework.security: DEBUG
+    org.flywaydb: INFO
+
