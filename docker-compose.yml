@@ -17,7 +17,43 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - ijeaf-network
+
+  ibackend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ijeaf-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/ijeaf_dev
+      SPRING_DATASOURCE_USERNAME: ijeaf
+      SPRING_DATASOURCE_PASSWORD: ijeaf_dev_password
+      JAVA_OPTS: "-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:+UseG1GC"
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./src:/app/src
+      - ./pom.xml:/app/pom.xml
+    networks:
+      - ijeaf-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9090/actuator/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
 
 volumes:
   postgres_data:
     name: ijeaf_postgres_data
+
+networks:
+  ijeaf-network:
+    name: ijeaf-network
+    driver: bridge

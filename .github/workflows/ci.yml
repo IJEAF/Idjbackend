@@ -2,13 +2,14 @@ name: CI — Build & Test
 
 on:
   pull_request:
-    branches: [ develop, main ]
+    branches: [develop, staging, main]
+    types: [opened, reopened, synchronize, closed]
   push:
-    branches: [ develop ]
+    branches: [feature/*]
 
 jobs:
-  build:
-    name: Build, Test & Quality
+  test:
+    name: Build, Test & Quality Check
     runs-on: ubuntu-latest
 
     services:
@@ -17,7 +18,7 @@ jobs:
         env:
           POSTGRES_DB: ijeaf_test
           POSTGRES_USER: ijeaf
-          POSTGRES_PASSWORD: ijeaf_dev_password
+          POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD_TEST }}
         ports:
           - 5432:5432
         options: >-
@@ -27,43 +28,132 @@ jobs:
           --health-retries 5
 
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
-          java-version: '17'
-          distribution: 'temurin'
+          java-version: "17"
+          distribution: "temurin"
           cache: maven
 
       - name: Build
-        run: ./mvnw clean compile -q
-        env:
-          JWT_SECRET: ci_secret_key_256_bits_long_for_testing_purposes_only_not_for_prod
+        run: mvn clean compile -B
 
-      - name: Run Tests
-        run: ./mvnw test
+      - name: Checkstyle
+        run: mvn checkstyle:check -B
+
+      - name: Run tests
+        run: mvn test -B
         env:
-          JWT_SECRET: ci_secret_key_256_bits_long_for_testing_purposes_only_not_for_prod
+          SPRING_PROFILES_ACTIVE: test
           DB_URL: jdbc:postgresql://localhost:5432/ijeaf_test
           DB_USERNAME: ijeaf
-          DB_PASSWORD: ijeaf_dev_password
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD_TEST }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET_TEST }}
+          JWT_ACCESS_EXPIRATION: ${{ secrets.JWT_ACCESS_EXPIRATION }}
+          JWT_REFRESH_EXPIRATION: ${{ secrets.JWT_REFRESH_EXPIRATION }}
 
-      - name: JaCoCo Coverage Report
-        run: ./mvnw jacoco:report
-        env:
-          JWT_SECRET: ci_secret_key_256_bits_long_for_testing_purposes_only_not_for_prod
+      - name: Generate JaCoCo coverage report
+        run: mvn jacoco:report -B
 
-      - name: Upload Coverage Report
+      - name: Check coverage threshold (70%)
+        run: mvn jacoco:check -B
+
+      - name: Upload coverage report
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: jacoco-report
           path: target/site/jacoco/
+          retention-days: 7
 
-      - name: Checkstyle
-        run: ./mvnw checkstyle:check
+      - name: Post coverage comment on PR
+        uses: madrapps/jacoco-report@v1.6.1
+        if: github.event_name == 'pull_request'
+        with:
+          paths: ${{ github.workspace }}/target/site/jacoco/jacoco.xml
+          token: ${{ secrets.GITHUB_TOKEN }}
+          min-coverage-overall: 70
+          min-coverage-changed-files: 70
+          title: "Coverage Report"
+          update-comment: true
+
+  secret-scan:
+    name: Secret Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
         env:
-          JWT_SECRET: ci_secret_key_256_bits_long_for_testing_purposes_only_not_for_prod
-        continue-on-error: true
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  build-docker:
+    name: Build & Push Docker Image
+    runs-on: ubuntu-latest
+    needs: [test, secret-scan]
+    if: >
+      github.event_name == 'pull_request' &&
+      github.event.action == 'closed' &&
+      github.event.pull_request.merged == true &&
+      github.base_ref == 'staging'
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Extract commit SHA
+        id: sha
+        run: echo "short_sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build Docker image
+        run: docker build -t ghcr.io/ijeaf/ibackend:latest .
+
+      - name: Test Docker image
+        run: |
+          docker run --rm ghcr.io/ijeaf/ibackend:latest java -version
+
+      - name: Scan image with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ghcr.io/ijeaf/ibackend:latest
+          format: sarif
+          output: trivy-results.sarif
+          exit-code: "1"
+          severity: CRITICAL,HIGH
+
+      - name: Upload Trivy scan results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: trivy-results
+          path: trivy-results.sarif
+          retention-days: 7
+
+      - name: Tag Docker image
+        run: |
+          docker tag ghcr.io/ijeaf/ibackend:latest ghcr.io/ijeaf/ibackend:${{ steps.sha.outputs.short_sha }}
+          docker tag ghcr.io/ijeaf/ibackend:latest ghcr.io/ijeaf/ibackend:staging
+
+      - name: Push Docker image
+        run: |
+          docker push ghcr.io/ijeaf/ibackend:${{ steps.sha.outputs.short_sha }}
+          docker push ghcr.io/ijeaf/ibackend:staging
+
+      - name: Clean up Docker images
+        if: always()
+        run: |
+          docker rmi ghcr.io/ijeaf/ibackend:latest ghcr.io/ijeaf/ibackend:${{ steps.sha.outputs.short_sha }} ghcr.io/ijeaf/ibackend:staging || true

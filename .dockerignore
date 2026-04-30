@@ -1,0 +1,97 @@
+# ─── Version Control ────────────────────────────────────────────────────
+.git
+.gitignore
+.gitattributes
+
+# ─── IDE & Editor ───────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+*.sublime-project
+.netbeans/
+
+# ─── Build & Dependencies ───────────────────────────────────────────────
+target/
+build/
+dist/
+*.jar
+*.war
+*.ear
+*.zip
+*.tar.gz
+node_modules/
+.m2/
+.gradle/
+
+# ─── Documentation & Markdown ───────────────────────────────────────────
+README.md
+*.md
+docs/
+CHANGELOG.md
+LICENSE
+
+# ─── Environment & Configuration ────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+application-local.properties
+application-dev.properties
+.properties
+
+# ─── Logs & Temporary Files ─────────────────────────────────────────────
+*.log
+logs/
+tmp/
+temp/
+*.tmp
+*.pid
+
+# ─── CI/CD ──────────────────────────────────────────────────────────────
+.github/
+.gitlab-ci.yml
+.travis.yml
+Jenkinsfile
+.circleci/
+
+# ─── Docker & Container ─────────────────────────────────────────────────
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# ─── Test Files ─────────────────────────────────────────────────────────
+src/test/
+*.test.js
+test.properties
+
+# ─── NPM & Package Managers ─────────────────────────────────────────────
+npm-debug.log
+yarn-error.log
+package-lock.json
+yarn.lock
+
+# ─── OS Files ───────────────────────────────────────────────────────────
+Thumbs.db
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# ─── Miscellaneous ──────────────────────────────────────────────────────
+*.swp
+*.swo
+*~
+.vimrc
+.editorconfig
+CONTRIBUTING.md
+CODE_OF_CONDUCT.md
+.prettierrc
+.eslintrc
+.stylelintrc
