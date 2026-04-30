@@ -1,2 +1,33 @@
+# ─── IDE ───────────────────────────────────────────────
 .idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+*.DS_Store
+
+# ─── Maven ─────────────────────────────────────────────
+target/
+!.mvn/wrapper/maven-wrapper.jar
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# ─── Spring Boot ───────────────────────────────────────
+spring-shell.log
+
+# ─── Environnement (secrets) ───────────────────────────
+.env
 src/main/resources/firebase-credentials.json
+
+# ─── Logs ──────────────────────────────────────────────
+*.log
+logs/
+
+# ─── OS ────────────────────────────────────────────────
+Thumbs.db
+ehthumbs.db
